@@ -1,4 +1,5 @@
 from tensorflow.python.framework import graph_util
+from scipy import signal as sg
 from scipy.io import wavfile
 import tensorflow as tf
 import pyworld as pw
@@ -37,6 +38,14 @@ def process_phones(l):
 	
 	return l, l_ph_befs, l_ph_bef_befs, l_ph_afts, l_ph_aft_afts, l_perc, l_ph_lens
 
+def smooth(a, wl):
+	acc = []
+	b = np.hsplit(a, len(a[0]))
+	for v in b:
+		f = v.flatten()
+		g = sg.savgol_filter(f, wl, 2)
+		acc.append(np.hsplit(g, len(g)))
+	return np.concatenate(acc, axis=1)
 
 # Load NN Model 
 print('Loading Model...')
@@ -112,6 +121,8 @@ for title in titles:
 		output_vector = sess.run([Y_], {X:input_vector, n_frames:length})
 		#output_vector = sess.run([Y_], {X:input_vector})
 	prediction = output_vector[0]
+	#prediction = smooth(prediction, 5)
+
 
 	print('Denormalizing...')
 	with open('output_mean_std' + '.pickle', "rb") as g: 
@@ -121,9 +132,15 @@ for title in titles:
 	prediction += output_mean
 
 	fs = 48000
-	bap = np.array(prediction[:,0:3], dtype=np.float64)
-	bap = np.array([[0.0 if val>-0.1 else val for val in row] for row in bap], dtype=np.float64)
+
+	vuv = np.array(prediction[:,0:1], dtype=np.float64)
+	vuv = np.array([[1] if i[0] > 0.5 else [0] for i in vuv])
+	bap = np.array(prediction[:,1:3], dtype=np.float64)
 	mgc = np.array(prediction[:,3:], dtype=np.float64)
+	f0 = load_f0(title)
+
+	bap = bap*vuv
+	f0 = f0*vuv.flatten()
 
 	sp = pysptk.mc2sp(mgc, fftlen=1024, alpha=pysptk.util.mcepalpha(fs))
 	ap = pysptk.mc2sp(bap, fftlen=1024, alpha=pysptk.util.mcepalpha(fs))
