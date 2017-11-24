@@ -66,7 +66,7 @@ if titles == []:
 # Download NN Model
 print('Dowloading Model...')
 
-url = "https://www.dropbox.com/s/fcsthwhkq4m5s2b/frozen_model?dl=1" 
+url = "https://www.dropbox.com/s/3f87wsao8db3ts5/frozen_model?dl=1" 
 u = urllib.request.urlopen(url)
 data = u.read()
 u.close()
