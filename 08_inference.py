@@ -63,21 +63,10 @@ if titles == []:
 	print('No input files found! Please provide .f0 and .TextGrid files!')
 	exit()
 
-# Download NN Model
-print('Dowloading Model...')
-
-url = "https://www.dropbox.com/s/3f87wsao8db3ts5/frozen_model?dl=1" 
-u = urllib.request.urlopen(url)
-data = u.read()
-u.close()
- 
-with open('frozen_model', "wb") as f :
-    f.write(data)
-
 # Load NN Model 
 print('Loading Model...')
 
-with tf.gfile.GFile('frozen_model', "rb") as f:
+with tf.gfile.GFile('build/model/frozen_model', "rb") as f:
 	graph_def = tf.GraphDef()
 	graph_def.ParseFromString(f.read())
 
