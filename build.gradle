@@ -1,0 +1,23 @@
+plugins {
+    id 'base'
+}
+
+repositories {
+    ['cloudark', 'localhost'].each { host ->
+        maven {
+            credentials {
+                username findProperty('cloudarkUser')
+                password findProperty('cloudarkApiKey')
+            }
+            url "http://$host:8081/artifactory/local/"
+        }
+    }
+}
+
+configurations {
+    data
+}
+
+dependencies {
+    data group: 'de.dfki.mary.blizzard', name: 'segmental_synthesizer_model', version: '0.1-SNAPSHOT', ext: 'zip'
+}
