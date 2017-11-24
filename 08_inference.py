@@ -12,8 +12,11 @@ import tgt
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
 
-def load_titles():
-	return [fn[:-3] for fn in os.listdir('input/') if '.f0' in fn]
+def load_TextGrid_titles():
+	return [os.path.splitext(fn)[0] for fn in os.listdir('input/') if os.path.splitext(fn)[1] == '.TextGrid']
+
+def load_f0_titles():
+	return [os.path.splitext(fn)[0] for fn in os.listdir('input/') if os.path.splitext(fn)[1] == '.f0']
 
 def load_f0(title):
 	with open('input/'+title+'.f0') as f:
@@ -51,6 +54,15 @@ def smooth(a, wl):
 os.makedirs('input', exist_ok=True)
 os.makedirs('output', exist_ok=True)
 
+# Load titles
+TextGrid_titles = load_TextGrid_titles()
+f0_titles = load_f0_titles()
+titles = list(set(TextGrid_titles).intersection(f0_titles))
+
+if titles == []:
+	print('No input files found! Please provide .f0 and .TextGrid files!')
+	exit()
+
 # Download NN Model
 print('Dowloading Model...')
 
@@ -77,8 +89,6 @@ X = graph.get_tensor_by_name('import/X:0')
 n_frames = graph.get_tensor_by_name('import/n_frames:0')
 Y_ = graph.get_tensor_by_name('import/Y_:0')
 
-# Load titles
-titles = load_titles()
 
 # Loop over each title
 for title in titles:
