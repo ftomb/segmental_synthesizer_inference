@@ -2,6 +2,7 @@ from tensorflow.python.framework import graph_util
 from scipy import signal as sg
 from scipy.io import wavfile
 import tensorflow as tf
+import urllib.request
 import pyworld as pw
 import numpy as np
 import pysptk
@@ -46,6 +47,20 @@ def smooth(a, wl):
 		g = sg.savgol_filter(f, wl, 2)
 		acc.append(np.hsplit(g, len(g)))
 	return np.concatenate(acc, axis=1)
+
+os.makedirs('input', exist_ok=True)
+os.makedirs('output', exist_ok=True)
+
+# Download NN Model
+print('Dowloading Model...')
+
+url = "https://www.dropbox.com/s/fcsthwhkq4m5s2b/frozen_model?dl=1" 
+u = urllib.request.urlopen(url)
+data = u.read()
+u.close()
+ 
+with open('frozen_model', "wb") as f :
+    f.write(data)
 
 # Load NN Model 
 print('Loading Model...')
