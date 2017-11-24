@@ -136,7 +136,7 @@ for title in titles:
 	# Normalize input vector
 	print('Normalizing...')
 	input_vector -= input_mean
-	input_vector /= input_std
+	input_vector /= input_std+np.finfo(float).eps
 
 	# Inference
 	print('Doing inference...')
