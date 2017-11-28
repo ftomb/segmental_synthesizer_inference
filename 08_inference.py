@@ -64,8 +64,7 @@ f0_titles = load_f0_titles()
 titles = list(set(TextGrid_titles).intersection(f0_titles))
 
 if titles == []:
-	print('No input files found! Please provide .f0 and .TextGrid files!')
-	exit()
+	sys.exit('No input files found! Please provide .f0 and .TextGrid files!')
 
 # Load NN Model 
 print('Loading Model...')
