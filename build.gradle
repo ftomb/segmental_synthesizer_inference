@@ -19,16 +19,29 @@ configurations {
 }
 
 dependencies {
-    data group: 'de.dfki.mary.blizzard', name: 'segmental_synthesizer_model', version: '0.1-SNAPSHOT', ext: 'zip'
+    data group: 'de.dfki.mary', name: 'blizzard2017-data-lab', version: '0.4.0', ext: 'zip'
+    data group: 'de.dfki.mary.blizzard', name: 'blizzard2017-data-f0', version: '0.1-SNAPSHOT', ext: 'zip'
+    data group: 'de.dfki.mary.blizzard', name: 'blizzard2017-f0-dnn-model', version: '0.1-SNAPSHOT', ext: 'zip'
 }
 
-task unpackModel(type: Copy) {
-    from configurations.data.files.collect { zipTree(it) }
-    into "$buildDir/model"
+task unpackData(type: Copy) {
+    from configurations.data
+    into "$buildDir/input"
+    filesMatching '*.zip', { zipFileDetails ->
+        copy {
+            from zipTree(zipFileDetails.file)
+            into destinationDir
+            eachFile {
+                it.path = it.name
+            }
+            includeEmptyDirs = false
+        }
+        zipFileDetails.exclude()
+    }
 }
 
 task runSynthesis(type: Exec) {
-    dependsOn unpackModel
+    dependsOn unpackData
     def pyFile = "08_inference.py"
     inputs.files pyFile, 'input_mean_std.pickle', 'output_mean_std.pickle', 'phone_dictionary.dict'
     commandLine 'python3', pyFile
