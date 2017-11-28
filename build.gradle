@@ -44,5 +44,10 @@ task runSynthesis(type: Exec) {
     dependsOn unpackData
     def pyFile = "08_inference.py"
     inputs.files pyFile, 'input_mean_std.pickle', 'output_mean_std.pickle', 'phone_dictionary.dict'
-    commandLine 'python3', pyFile
+    def destDir = file("$buildDir/output")
+    outputs.dir destDir
+    commandLine 'python3', pyFile, unpackData.destinationDir, destDir
+    doFirst {
+        destDir.mkdirs()
+    }
 }
