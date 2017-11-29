@@ -1,3 +1,4 @@
+import sys
 from tensorflow.python.framework import graph_util
 from scipy import signal as sg
 from scipy.io import wavfile
@@ -12,14 +13,20 @@ import tgt
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
 
+try:
+	(inputDir, outputDir) = sys.argv[1:3]
+except ValueError:
+	(inputDir, outputDir) = ['input', 'output']
+	print('WARNING: input and output directories not configured, using defaults')
+
 def load_TextGrid_titles():
-	return [os.path.splitext(fn)[0] for fn in os.listdir('input/') if os.path.splitext(fn)[1] == '.TextGrid']
+	return [os.path.splitext(fn)[0] for fn in os.listdir(inputDir) if os.path.splitext(fn)[1] == '.TextGrid']
 
 def load_f0_titles():
-	return [os.path.splitext(fn)[0] for fn in os.listdir('input/') if os.path.splitext(fn)[1] == '.f0']
+	return [os.path.splitext(fn)[0] for fn in os.listdir(inputDir) if os.path.splitext(fn)[1] == '.f0']
 
 def load_f0(title):
-	with open('input/'+title+'.f0') as f:
+	with open(os.path.join(inputDir, title+'.f0')) as f:
 		return np.array([float(l.strip()) for l in f], dtype=np.float64)
 
 def process_phones(l):
@@ -51,33 +58,18 @@ def smooth(a, wl):
 		acc.append(np.hsplit(g, len(g)))
 	return np.concatenate(acc, axis=1)
 
-os.makedirs('input', exist_ok=True)
-os.makedirs('output', exist_ok=True)
-
 # Load titles
 TextGrid_titles = load_TextGrid_titles()
 f0_titles = load_f0_titles()
 titles = list(set(TextGrid_titles).intersection(f0_titles))
 
 if titles == []:
-	print('No input files found! Please provide .f0 and .TextGrid files!')
-	exit()
-
-# Download NN Model
-print('Dowloading Model...')
-
-url = "https://www.dropbox.com/s/3f87wsao8db3ts5/frozen_model?dl=1" 
-u = urllib.request.urlopen(url)
-data = u.read()
-u.close()
- 
-with open('frozen_model', "wb") as f :
-    f.write(data)
+	sys.exit('No input files found! Please provide .f0 and .TextGrid files!')
 
 # Load NN Model 
 print('Loading Model...')
 
-with tf.gfile.GFile('frozen_model', "rb") as f:
+with tf.gfile.GFile(os.path.join(inputDir, 'frozen_model'), "rb") as f:
 	graph_def = tf.GraphDef()
 	graph_def.ParseFromString(f.read())
 
@@ -102,7 +94,7 @@ for title in titles:
 	ts = [i*0.005 for i in range(len(f0))]
 
 	# Load TextGrid
-	tgname = 'input/' + title + '.TextGrid'
+	tgname = os.path.join(inputDir, title + '.TextGrid')
 	tg = tgt.read_textgrid(tgname)
 	phones_tier = tg.get_tier_by_name('phones')
 
@@ -171,6 +163,6 @@ for title in titles:
 	ap = pysptk.mc2sp(bap, fftlen=1024, alpha=pysptk.util.mcepalpha(fs))
 
 	y = pw.synthesize(f0, sp, ap, fs)
-	wavfile.write('output/' + title + '.wav', fs, np.array(y, dtype=np.int16))
+	wavfile.write(os.path.join(outputDir, title + '.wav'), fs, np.array(y, dtype=np.int16))
 
 
