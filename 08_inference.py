@@ -109,7 +109,7 @@ for title in titles:
 	# generate phone vectors
 	ph, ph_b, ph_b_b, ph_a, ph_a_a, ph_perc, ph_len = process_phones(phone_list)
 
-	with open('phone_dictionary.dict', "rb") as f:
+	with open(os.path.join(inputDir, 'phone_dictionary.dict'), "rb") as f:
 		ph_dict = pickle.load(f)
 
 	# Convert phone vectors to hot vectors
@@ -122,7 +122,7 @@ for title in titles:
 	# Concatenate all the input vectors
 	input_vector = np.concatenate((hot_ph, hot_ph_b, hot_ph_b_b, hot_ph_a, hot_ph_a_a, ph_perc, ph_len, lf0), axis=1)
 
-	with open('input_mean_std.pickle' , "rb") as f: 
+	with open(os.path.join(inputDir, 'input_mean_std.pickle'), "rb") as f:
 		input_mean, input_std = pickle.load(f)
 
 	# Normalize input vector
@@ -142,7 +142,7 @@ for title in titles:
 
 
 	print('Denormalizing...')
-	with open('output_mean_std' + '.pickle', "rb") as g: 
+	with open(os.path.join(inputDir, 'output_mean_std.pickle'), "rb") as g:
 		output_mean, output_std = pickle.load(g)
 
 	prediction *= output_std
