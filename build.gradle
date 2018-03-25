@@ -2,6 +2,7 @@ plugins {
     id 'base'
 }
 
+/*
 repositories {
     ['cloudark', 'localhost'].each { host ->
         maven {
@@ -39,15 +40,24 @@ task unpackData(type: Copy) {
         zipFileDetails.exclude()
     }
 }
+*/
+/*
+add task to unpack data. The data should be unpacked in the build folder as follows:
+    
+    -textgrid: source textgrids
+    -f0: source f0 with the following format: time, f0
+    -model:
+        -frozen_model
+        -input_std
+        -output_std
+        -phone_dict
 
-task runSynthesis(type: Exec) {
-    dependsOn unpackData
-    def pyFile = "08_inference.py"
-    inputs.files pyFile
-    def destDir = file("$buildDir/output")
-    outputs.dir destDir
-    commandLine 'python3', pyFile, unpackData.destinationDir, destDir
-    doFirst {
-        destDir.mkdirs()
-    }
+
+*/
+task synthesize(type: PyExec) {
+    //dependsOn unpackData
+    srcFiles = [file("$buildDir/textgrid"), file("$buildDir/f0"), file("$buildDir/model")]
+    destDirs = file("$buildDir/wav")
+    pyFile = file("scripts/synthesize_v2.py")
+    args += srcFiles + [destDirs]
 }
