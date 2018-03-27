@@ -21,16 +21,15 @@ def load_titles(target_path, extension):
 			titles.append(basename)
 	return titles
 
-def load_f0(title, f0_path):
-	# use this when you have time column and an f0 column
-	with open(os.path.join(f0_path, title+'.f0')) as f:
-		return np.array([float(l.strip().split()[1]) for l in f], dtype=np.float64)
-
 #def load_f0(title, f0_path):
-	# use this when you only have f0s without the time before 
+	# use this when you have time column and an f0 column
 	#with open(os.path.join(f0_path, title+'.f0')) as f:
-		#f0 = json.load(f)
-		#return np.array(f0, dtype=np.float64)
+		#return np.array([float(l.strip().split()[1]) for l in f], dtype=np.float64)
+
+def load_f0(title, f0_path):
+	# use this f0 is a json file
+	with open(os.path.join(f0_path, title+'.f0')) as f:
+		return np.array(json.load(f), dtype=np.float64)
 
 def load_merlin_f0(title, f0_path):
 	with open(os.path.join(f0_path, title+'.f0'), 'r') as f:
@@ -79,7 +78,7 @@ def merlin_post_filter(mgc, alpha,
     return mgc_p_mgc
 
 
-def synthesize_title(title, textgrid_path, f0_path, model_path, output_path):
+def synthesize_title(title, textgrid_path, f0_path, model_path, output_path, delta, v2):
 
 	# Load NN Model 
 	print('Loading Model...')
@@ -93,7 +92,8 @@ def synthesize_title(title, textgrid_path, f0_path, model_path, output_path):
 
 	X = graph.get_tensor_by_name('import/X:0')
 	n_frames = graph.get_tensor_by_name('import/n_frames:0')
-	seq_len = graph.get_tensor_by_name('import/seq_len:0')
+	if v2 == True:
+		seq_len = graph.get_tensor_by_name('import/seq_len:0')
 	Y_ = graph.get_tensor_by_name('import/Y_:0')
 
 
@@ -102,10 +102,7 @@ def synthesize_title(title, textgrid_path, f0_path, model_path, output_path):
 	# Load f0
 	sil = 'sil'
 
-	f0 = load_f0(title, f0_path)
-
-	# This is needed by the synthesizer
-	lf0 = np.log2([[float(i)] for i in f0], dtype=np.float64)
+	lf0 = load_f0(title, f0_path)
 
 	# Generate time points for phone extraction
 	ts = [i*0.005 for i in range(len(lf0))]
@@ -158,7 +155,10 @@ def synthesize_title(title, textgrid_path, f0_path, model_path, output_path):
 	print('Doing inference...')
 	length = len(input_vector)
 	with tf.Session(graph=graph) as sess:
-		output_vector = sess.run([Y_], {X:input_vector, n_frames:length, seq_len:[length]})
+		if v2 == True:
+			output_vector = sess.run([Y_], {X:input_vector, n_frames:length, seq_len:[length]})
+		else:
+			output_vector = sess.run([Y_], {X:input_vector, n_frames:length})
 	prediction = output_vector[0]
 
 
@@ -182,13 +182,20 @@ def synthesize_title(title, textgrid_path, f0_path, model_path, output_path):
 	vuv = np.array(prediction[:,0:1], dtype=np.float64)
 	vuv = np.array([[1] if i[0] > 0.5 else [0] for i in vuv])
 
-	bap = np.array(prediction[:,1:7], dtype=np.float64)
-	bap = np.concatenate([(col.flatten()*vuv.flatten()).reshape((-1, 1)) for col in np.split(bap, len(bap[0]), axis=1)], axis=1)
-
-	mgc = np.array(prediction[:,7:], dtype=np.float64)
-	mgc = merlin_post_filter(mgc, alpha=pysptk.util.mcepalpha(fs))
-
+	f0 = np.exp2(lf0[:,0:1], dtype=np.float64)
 	f0 = f0.flatten()*vuv.flatten()
+
+	if delta==True:
+		# dunno what to do with the deltas, so for now just extract the static values and ignore deltas
+		bap = np.array(prediction[:,1:7], dtype=np.float64)
+		mgc = np.array(prediction[:,19:80], dtype=np.float64)
+
+	else:
+		bap = np.array(prediction[:,1:7], dtype=np.float64)
+		mgc = np.array(prediction[:,7:], dtype=np.float64)
+
+	bap = np.concatenate([(col.flatten()*vuv.flatten()).reshape((-1, 1)) for col in np.split(bap, len(bap[0]), axis=1)], axis=1)
+	mgc = merlin_post_filter(mgc, alpha=pysptk.util.mcepalpha(fs))
 
 	sp = pysptk.mc2sp(mgc, fftlen=2048, alpha=pysptk.util.mcepalpha(fs))
 	ap = pysptk.mc2sp(bap, fftlen=2048, alpha=pysptk.util.mcepalpha(fs))
@@ -205,21 +212,27 @@ if __name__ == '__main__':
 	model_path = sys.argv[3]
 	output_path = sys.argv[4]
 
-	#textgrid_path = '../build/textgrid'
-	#f0_path = '../build/f0'
+	#textgrid_path = '../build/00_textgrid'
+	#f0_path = '../build/04_f0'
 	#model_path = '../build/model'
-	#output_path = '../build/wav'
+	#output_path = '../build/14_wav'
 
 	textgrid_titles = load_titles(textgrid_path, '.TextGrid')
 	f0_titles = load_titles(f0_path, '.f0')
 
 	titles = list(set(textgrid_titles).intersection(f0_titles))
 
+	# True if you included delta and delta-delta features
+	delta = True
+
+	# True if you trained the v2 model (birnn+rnn), False if you trained the v1 model(ffnn+rnn)
+	v2 = True
+
 	if titles == []:
 		sys.exit('No input files found! Please provide .f0 and .TextGrid files!')
 
 	p = Pool()
-	p.starmap(synthesize_title, [(title, textgrid_path, f0_path, model_path, output_path) for title in titles])
+	p.starmap(synthesize_title, [(title, textgrid_path, f0_path, model_path, output_path, delta, v2) for title in titles])
 
 
 
